@@ -780,6 +780,7 @@ namespace ProgressControl
 
             config.开服日期 = DateTime.Now;
             config.上次重启服务器的日期 = DateTime.Now;
+            config.上次自动执行指令的日期 = DateTime.Now;
             Config.SaveConfigFile(config);
             Console.Clear();
             string path = "";

@@ -60,7 +60,7 @@ namespace ProgressControl
             自动重启的参数设置 = "这是一条提示信息。自动重启的端口会沿用重启前的；最大玩家数目、密码将按照config.json来配置";
             自动重启前执行的指令_不需要加斜杠 = new HashSet<string>();
 
-            是否自动控制Boss进度 = true;
+            是否自动控制Boss进度 = false;
             Boss封禁时长距开服日期_单位小时 = new Dictionary<string, double>()
             {
                 {"史莱姆王", 0},//第一天
