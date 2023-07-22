@@ -1,6 +1,5 @@
 ﻿using Microsoft.Xna.Framework;
 using System.Diagnostics;
-using System.Reflection;
 using Terraria;
 using Terraria.ID;
 using TerrariaApi.Server;
@@ -177,7 +176,8 @@ namespace ProgressControl
                     string mess3 = "";
                     foreach (string v in config.自动执行的指令_不需要加斜杠)
                     {
-                        mess3 += "/" + v + ", ";
+                        if (!string.IsNullOrWhiteSpace(v))
+                            mess3 += "/" + v + ", ";
                     }
                     mess3 = mess3.Trim();
                     mess3 = mess3.Trim(',');
@@ -624,6 +624,7 @@ namespace ProgressControl
             else if (args.Parameters.Count == 3)
             {
                 if (args.Parameters[0].Equals("offset", StringComparison.OrdinalIgnoreCase))
+                {
                     if (args.Parameters[1].Equals("autoreset", StringComparison.OrdinalIgnoreCase))
                     {
                         if (!config.是否启用自动重置世界)
@@ -635,13 +636,16 @@ namespace ProgressControl
                             if (config.开服日期.AddHours(config.多少小时后开始自动重置世界 + num) < DateTime.Now.AddMinutes(AvoidTime))
                             {
                                 double temp = (DateTime.Now.AddMinutes(AvoidTime) - config.开服日期.AddHours(config.多少小时后开始自动重置世界)).TotalHours;
-                                args.Player.SendInfoMessage($"重置世界倒计时过短，需小于 {temp:0.00} 来避免立刻重置，修改失败，若要立刻重置，请使用 /supco reset 指令");
+                                args.Player.SendInfoMessage($"重置世界倒计时过短，需{(temp > 0 ? "小" : "大")}于 {temp:0.00} 来避免立刻重置，修改失败，若要立刻重置，请使用 /supco reset 指令");
                             }
                             else
                             {
                                 config.多少小时后开始自动重置世界 += num;
                                 Config.SaveConfigFile(config);
-                                args.Player.SendSuccessMessage($"时间已修改为 {config.多少小时后开始自动重置世界:0.00} 即从现在起{HoursToM((config.开服日期.AddHours(config.多少小时后开始自动重置世界) - DateTime.Now).TotalHours, "EA00FF")}后开始重置");
+                                if (args.Player.IsLoggedIn)
+                                    args.Player.SendSuccessMessage($"时间已修改为 {config.多少小时后开始自动重置世界:0.00} 即从现在起{HoursToM((config.开服日期.AddHours(config.多少小时后开始自动重置世界) - DateTime.Now).TotalHours, "EA00FF")}后开始重置");
+                                else
+                                    args.Player.SendSuccessMessage($"时间已修改为 {config.多少小时后开始自动重置世界:0.00} 即从现在起{HoursToM((config.开服日期.AddHours(config.多少小时后开始自动重置世界) - DateTime.Now).TotalHours)}后开始重置");
                                 if (config.是否启用自动重置世界)
                                     TSPlayer.All.SendInfoMessage("自动重置计划已修改");
                             }
@@ -660,13 +664,16 @@ namespace ProgressControl
                             if (config.上次重启服务器的日期.AddHours(config.多少小时后开始自动重启服务器 + num) < DateTime.Now.AddMinutes(AvoidTime))
                             {
                                 double temp = (DateTime.Now.AddMinutes(AvoidTime) - config.上次重启服务器的日期.AddHours(config.多少小时后开始自动重启服务器)).TotalHours;
-                                args.Player.SendInfoMessage($"重启服务器倒计时过短，需小于 {temp:0.00} 来避免立刻重启，修改失败，若要立刻重启，请使用 /supco reload 指令");
+                                args.Player.SendInfoMessage($"重启服务器倒计时过短，需{(temp > 0 ? "小" : "大")}于 {temp:0.00} 来避免立刻重启，修改失败，若要立刻重启，请使用 /supco reload 指令");
                             }
                             else
                             {
                                 config.多少小时后开始自动重启服务器 += num;
                                 Config.SaveConfigFile(config);
-                                args.Player.SendSuccessMessage($"时间已修改为 {config.多少小时后开始自动重启服务器:0.00} 即从现在起{HoursToM((config.上次重启服务器的日期.AddHours(config.多少小时后开始自动重启服务器) - DateTime.Now).TotalHours, "FF9000")}后开始重启");
+                                if (args.Player.IsLoggedIn)
+                                    args.Player.SendSuccessMessage($"时间已修改为 {config.多少小时后开始自动重启服务器:0.00} 即从现在起{HoursToM((config.上次重启服务器的日期.AddHours(config.多少小时后开始自动重启服务器) - DateTime.Now).TotalHours, "FF9000")}后开始重启");
+                                else
+                                    args.Player.SendSuccessMessage($"时间已修改为 {config.多少小时后开始自动重启服务器:0.00} 即从现在起{HoursToM((config.上次重启服务器的日期.AddHours(config.多少小时后开始自动重启服务器) - DateTime.Now).TotalHours)}后开始重启");
                                 if (config.是否启用自动重启服务器)
                                     TSPlayer.All.SendInfoMessage("自动重启计划已修改");
                             }
@@ -676,6 +683,7 @@ namespace ProgressControl
                     }
                     else
                         args.Player.SendInfoMessage("输入 /supco help 来获取该插件的帮助");
+                }
                 else
                     args.Player.SendInfoMessage("输入 /supco help 来获取该插件的帮助");
             }
@@ -755,9 +763,10 @@ namespace ProgressControl
                     }
                 });
             }
+            /*
             try
             {
-                TShock.RestApi.Stop();
+                //TShock.RestApi.Stop();
             }
             catch { }
             try
@@ -767,6 +776,7 @@ namespace ProgressControl
                 serverLogWriter?.Dispose();
             }
             catch { }
+            */
 
             config.开服日期 = DateTime.Now;
             config.上次重启服务器的日期 = DateTime.Now;
@@ -797,7 +807,7 @@ namespace ProgressControl
                 }
             }
             Process.Start(Path.Combine(Environment.CurrentDirectory, "Tshock.Server.exe"),
-                $"-lang 7 -autocreate {config.自动重置的地图大小_小1_中2_大3} -seed {config.自动重置的地图种子} -world {path}/{worldname} -difficulty {config.自动重置的地图难度_普通0_专家1_大师2_旅途3} -maxplayers {config.自动重置的最多在线人数} -port {config.自动重置的端口} -cmd run");
+                $"-lang 7 -autocreate {config.自动重置的地图大小_小1_中2_大3} -seed {config.自动重置的地图种子} -world {path}/{worldname} -difficulty {config.自动重置的地图难度_普通0_专家1_大师2_旅途3} -maxplayers {config.自动重置的最多在线人数} -port {config.自动重置的端口} -c");
             Netplay.Disconnect = true;
             Environment.Exit(0); //暴力关服处理
         }
@@ -813,14 +823,16 @@ namespace ProgressControl
             TShock.Utils.SaveWorld();
             TShock.Players.ForEach(x => { if (x != null && x.IsLoggedIn) x.SaveServerCharacter(); });
             TShock.Log.Dispose();
+            /*
             try
             {
                 TShock.RestApi.Stop();
             }
             catch { }
+            */
             Console.Clear();
             Process.Start(Path.Combine(Environment.CurrentDirectory, "Tshock.Server.exe"),
-                $"-lang 7 -world {Main.worldPathName} -maxplayers {TShock.Config.Settings.MaxSlots} -port {Netplay.ListenPort} -cmd run");
+                $"-lang 7 -world {Main.worldPathName} -maxplayers {TShock.Config.Settings.MaxSlots} -port {Netplay.ListenPort} -c");
             Netplay.Disconnect = true;
             Environment.Exit(0); //暴力关服处理
         }
@@ -906,7 +918,7 @@ namespace ProgressControl
                                 keyValuePairs.Remove(key);
                             }
                         }
-                        string mess = args.Player.IsLoggedIn ? "[i:3868]已解锁Boss：\n" : "已解锁Boss：\n";
+                        string mess = args.Player.IsLoggedIn ? "[i:3868]已解锁Boss：\n" : "@已解锁Boss：\n";
                         int count = 0;
                         //把排好序的数据输出
                         foreach (var v in sortpairs)
@@ -1195,12 +1207,15 @@ namespace ProgressControl
                                 st = "提前" + (args.Player.IsLoggedIn ? HoursToM(-1 * addtime, "00A8FF") : HoursToM(-1 * addtime));
                             else
                                 st = "时间不变";
+                            double h = (config.上次自动执行指令的日期.AddHours(config.多少小时后开始自动执行指令) - DateTime.Now).TotalHours;
                             if (!config.是否启用自动执行指令)
                                 args.Player.SendErrorMessage("警告，未开启自动执行指令的计划，你的修改不会有任何效果");
                             else
-                                TSPlayer.All.SendSuccessMessage($"定位成功，下次自动执行指令将{st}");
+                                TSPlayer.All.SendInfoMessage("自动执行指令计划已修改");
                             if (!args.Player.IsLoggedIn)
-                                args.Player.SendSuccessMessage($"定位成功，下次自动执行指令将{st}");
+                                args.Player.SendSuccessMessage($"定位成功，下次自动执行指令将{st}，" + (h > 0 ? $"即从现在起{HoursToM(h)}后" : "你提前的太多了，指令将立刻执行"));
+                            else
+                                args.Player.SendSuccessMessage($"定位成功，下次自动执行指令将{st}，" + (h > 0 ? $"即从现在起{HoursToM(h, "00A8FF")}后" : "你提前的太多了，指令将立刻执行"));
                         }
                         else
                             args.Player.SendInfoMessage("输入 /pco help 来获取该插件的帮助");

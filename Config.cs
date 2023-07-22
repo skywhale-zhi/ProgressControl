@@ -87,7 +87,7 @@ namespace ProgressControl
             上次自动执行指令的日期 = DateTime.Now;
             是否启用自动执行指令 = false;
             多少小时后开始自动执行指令 = -1;
-            自动执行的指令_不需要加斜杠 = new HashSet<string> { "", "" };
+            自动执行的指令_不需要加斜杠 = new HashSet<string> {};
         }
 
         //重置计划
