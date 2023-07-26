@@ -24,7 +24,7 @@ namespace ProgressControl
         /// <summary>
         /// 用来防止一开服就重置/启，用来缓冲的时间间隔，单位分钟
         /// </summary>
-        private static int AvoidTime => 6;
+        private static int AvoidTime => 5;
 
         /// <summary>
         /// 手动计时器的状态类
@@ -56,14 +56,9 @@ namespace ProgressControl
 
         private static long Timer = 0L;
 
-        private Thread thread = new Thread(() =>
+        #region 线程
+        private Thread thread_auto = new Thread(() =>
         {
-            try
-            {   //刚开服的 AvoidTime 分钟内不要自动重置和重启
-                Thread.Sleep(1000 * 60 * AvoidTime);
-                Timer = 60L * AvoidTime;
-            }
-            catch { }
             while (!Netplay.Disconnect)
             {
                 try
@@ -72,43 +67,106 @@ namespace ProgressControl
                     Timer++;
                 }
                 catch { }
-                if (config.是否启用自动重置世界)
+                //刚开服的 AvoidTime 分钟内不要自动重置和重启，手动指令存在则不用执行
+                if (config.是否启用自动重置世界 && Timer >= 60 * AvoidTime && !countdownReset.enable)
                 {
                     TimeSpan span = config.开服日期.AddHours(config.多少小时后开始自动重置世界) - DateTime.Now;
-
-                    if (Timer % 3600L == 0L && !countdownReset.enable)
-                        TSPlayer.All.SendInfoMessage($"世界将于{HoursToM(span.TotalHours, "EA00FF")}后重置");
-
-                    if (span.TotalSeconds > 0 && span.TotalSeconds <= 60 && !countdownReset.enable)
+                    int time = (int)span.TotalSeconds;
+                    if (time >= 5 * 3600) //大于[5小时时，一小时一次广播
+                    {
+                        if (time % 3600 == 0)
+                        {
+                            TSPlayer.All.SendInfoMessage($"世界将于{HoursToM(span.TotalHours, "EA00FF")}后重置");
+                            Console.WriteLine($"世界将于{HoursToM(span.TotalHours)}后重置");
+                        }
+                    }
+                    else if (time >= 3600)// [1h ~ 5h)，30m一次广播
+                    {
+                        if (time % 1800 == 0)
+                        {
+                            TSPlayer.All.SendInfoMessage($"世界将于{HoursToM(span.TotalHours, "EA00FF")}后重置");
+                            Console.WriteLine($"世界将于{HoursToM(span.TotalHours)}后重置");
+                        }
+                    }
+                    else if (time >= 600)// [10m ~ 60m)，10m一次
+                    {
+                        if (time % 600 == 0)
+                        {
+                            TSPlayer.All.SendInfoMessage($"世界将于{HoursToM(span.TotalHours, "EA00FF")}后重置");
+                            Console.WriteLine($"世界将于{HoursToM(span.TotalHours)}后重置");
+                        }
+                    }
+                    else if (time >= 60)//[60s ~ 10m), 1m一次
+                    {
+                        if (time % 60 == 0)
+                        {
+                            TSPlayer.All.SendInfoMessage($"世界将于{HoursToM(span.TotalHours, "EA00FF")}后重置");
+                            Console.WriteLine($"世界将于{HoursToM(span.TotalHours)}后重置");
+                        }
+                    }
+                    else if (time >= 0)//[0 , 60)
                     {
                         TSPlayer.All.SendInfoMessage($"世界将于 [c/EA00FF:{span.Seconds}] 秒后重置");
+                        Console.WriteLine($"世界将于 {span.Seconds} 秒后重置");
                     }
-                    if ((DateTime.Now - config.开服日期).TotalHours >= config.多少小时后开始自动重置世界 && !countdownReset.enable)
+                    else
                     {
                         ResetGame();
                         break;
                     }
                 }
-                if (config.是否启用自动重启服务器)
+                //刚开服的 AvoidTime 分钟内不要自动重置和重启，手动指令存在时不用执行
+                if (config.是否启用自动重启服务器 && Timer >= 60 * AvoidTime && !countdownRestart.enable)
                 {
                     TimeSpan span = config.上次重启服务器的日期.AddHours(config.多少小时后开始自动重启服务器) - DateTime.Now;
-
-                    if (Timer % 3600L == 0L && !countdownRestart.enable)
-                        TSPlayer.All.SendInfoMessage($"服务器将于{HoursToM(span.TotalHours, "FF9000")}后重启");
-
-                    if (span.TotalSeconds > 0 && span.TotalSeconds <= 60 && !countdownRestart.enable)
+                    int time = (int)span.TotalSeconds;
+                    if (time >= 3600 * 5)//[5h, +oo)
                     {
-                        TSPlayer.All.SendInfoMessage($"服务器将于 [c/FF9000:{span.Seconds}] 秒后重启");
+                        if (time % 3600 == 0)
+                        {
+                            TSPlayer.All.SendInfoMessage($"服务器将于{HoursToM(span.TotalHours, "FF9000")}后重启");
+                            Console.WriteLine($"服务器将于{HoursToM(span.TotalHours)}后重启");
+                        }
                     }
-                    if ((DateTime.Now - config.上次重启服务器的日期).TotalHours >= config.多少小时后开始自动重启服务器 && !countdownRestart.enable)
+                    else if (time >= 3600)//[1h, 5h)
+                    {
+                        if (time % 1800 == 0)
+                        {
+                            TSPlayer.All.SendInfoMessage($"服务器将于{HoursToM(span.TotalHours, "FF9000")}后重启");
+                            Console.WriteLine($"服务器将于{HoursToM(span.TotalHours)}后重启");
+                        }
+                    }
+                    else if (time >= 600)//[10m, 1h)
+                    {
+                        if (time % 600 == 0)
+                        {
+                            TSPlayer.All.SendInfoMessage($"服务器将于{HoursToM(span.TotalHours, "FF9000")}后重启");
+                            Console.WriteLine($"服务器将于{HoursToM(span.TotalHours)}后重启");
+                        }
+                    }
+                    else if (time >= 60)//[1m, 10m)
+                    {
+                        if (time % 60 == 0)
+                        {
+                            TSPlayer.All.SendInfoMessage($"服务器将于{HoursToM(span.TotalHours, "FF9000")}后重启");
+                            Console.WriteLine($"服务器将于{HoursToM(span.TotalHours)}后重启");
+                        }
+                    }
+                    else if (time >= 0)//[0s, 1m)
+                    {
+                        TSPlayer.All.SendInfoMessage($"世界将于 [c/FF9000:{span.Seconds}] 秒后重启");
+                        Console.WriteLine($"世界将于 {span.Seconds} 秒后重启");
+                    }
+                    else
                     {
                         RestartGame();
                         break;
                     }
                 }
-                if (config.是否启用自动执行指令)
+
+                if (config.是否启用自动执行指令 && !countdownCom.enable)
                 {
-                    if ((DateTime.Now - config.上次自动执行指令的日期).TotalHours >= config.多少小时后开始自动执行指令 && !countdownCom.enable)
+                    if ((DateTime.Now - config.上次自动执行指令的日期).TotalHours >= config.多少小时后开始自动执行指令)
                     {
                         AutoCommands();
                     }
@@ -116,11 +174,128 @@ namespace ProgressControl
             }
         });
 
-        public PControl(Main game) : base(game) { }
+        private Thread thread_reset = new Thread(() =>
+        {
+            while (countdownReset.time >= 0 && !Netplay.Disconnect && countdownReset.enable)
+            {
+                if (countdownReset.time >= 3600 * 5)//5h ~ 无穷，每隔1h发送广播
+                {
+                    if (countdownReset.time % 3600 == 0)
+                    {
+                        TSPlayer.All.SendInfoMessage($"服务器将在{HoursToM(countdownReset.time * 1.0 / 3600, "EA00FF")}后重置");
+                        Console.WriteLine($"服务器将在{HoursToM(countdownReset.time * 1.0 / 3600)}后重置");
+                    }
+                }
+                else if (countdownReset.time >= 3600)//1h ~ 5h，每隔30m发送
+                {
+                    if (countdownReset.time % 1800 == 0)
+                    {
+                        TSPlayer.All.SendInfoMessage($"服务器将在{HoursToM(countdownReset.time * 1.0 / 3600, "EA00FF")}后重置");
+                        Console.WriteLine($"服务器将在{HoursToM(countdownReset.time * 1.0 / 3600)}后重置");
+                    }
+                }
+                else if (countdownReset.time >= 600)// 10m ~ 1h，10m一次
+                {
+                    if (countdownReset.time % 600 == 0)
+                    {
+                        TSPlayer.All.SendInfoMessage($"服务器将在{HoursToM(countdownReset.time * 1.0 / 3600, "EA00FF")}后重置");
+                        Console.WriteLine($"服务器将在{HoursToM(countdownReset.time * 1.0 / 3600)}后重置");
+                    }
+                }
+                else if (countdownReset.time >= 60)//1m ~ 10m，1m一次
+                {
+                    if (countdownReset.time % 60 == 0)
+                    {
+                        TSPlayer.All.SendInfoMessage($"服务器将在{HoursToM(countdownReset.time * 1.0 / 3600, "EA00FF")}后重置");
+                        Console.WriteLine($"服务器将在{HoursToM(countdownReset.time * 1.0 / 3600)}秒后重置");
+                    }
+                }
+                else if (countdownReset.time >= 20)//20s ~ 60s，5s一次
+                {
+                    if (countdownReset.time % 5 == 0)
+                    {
+                        TSPlayer.All.SendInfoMessage($"服务器将在 [c/EA00FF:{countdownReset.time}] 秒后重置");
+                        Console.WriteLine($"服务器将在 {countdownReset.time} 秒后重置");
+                    }
+                }
+                else if (countdownReset.time >= 1)//1s ~ 20s ，一秒一次
+                {
+                    TSPlayer.All.SendInfoMessage($"服务器将在 [c/EA00FF:{countdownReset.time}] 秒后重置");
+                    Console.WriteLine($"服务器将在 {countdownReset.time} 秒后重置");
+                }
+                else
+                {
+                    ResetGame();
+                }
+                countdownReset.time--;
+                Thread.Sleep(1000);
+            }
+        });
 
+        private Thread thread_reload = new Thread(() =>
+        {
+            while (countdownRestart.time >= 0 && !Netplay.Disconnect && countdownRestart.enable)
+            {
+                if (countdownRestart.time >= 3600 * 5)//大于5小时时
+                {
+                    if (countdownRestart.time % 3600 == 0)//每隔一小时发送自动化广播
+                    {
+                        TSPlayer.All.SendInfoMessage($"服务器将在{HoursToM(countdownRestart.time * 1.0 / 3600, "FF9000")}后重启");
+                        Console.WriteLine($"服务器将在{HoursToM(countdownRestart.time * 1.0 / 3600)}后重启");
+                    }
+                }
+                else if (countdownRestart.time >= 3600)//大于1h小于5h
+                {
+                    if (countdownRestart.time % 1800 == 0)//每隔30m发送自动化广播
+                    {
+                        TSPlayer.All.SendInfoMessage($"服务器将在{HoursToM(countdownRestart.time * 1.0 / 3600, "FF9000")}后重启");
+                        Console.WriteLine($"服务器将在{HoursToM(countdownRestart.time * 1.0 / 3600)}后重启");
+                    }
+                }
+                else if (countdownRestart.time >= 600)//10m ~ 1h
+                {
+                    if (countdownRestart.time % 600 == 0)//每隔十分钟发一次广播
+                    {
+                        TSPlayer.All.SendInfoMessage($"服务器将在{HoursToM(countdownRestart.time * 1.0 / 3600, "FF9000")}后重启");
+                        Console.WriteLine($"服务器将在{HoursToM(countdownRestart.time * 1.0 / 3600)}后重启");
+                    }
+                }
+                else if (countdownRestart.time >= 60)//1m ~ 10m
+                {
+                    if (countdownRestart.time % 60 == 0)//每一分钟发一次广播
+                    {
+                        TSPlayer.All.SendInfoMessage($"服务器将在{HoursToM(countdownRestart.time * 1.0 / 3600, "FF9000")}后重启");
+                        Console.WriteLine($"服务器将在{HoursToM(countdownRestart.time * 1.0 / 3600)}后重启");
+                    }
+                }
+                else if (countdownRestart.time >= 20)//20s ~ 60s
+                {
+                    if (countdownRestart.time % 5 == 0)//5秒发一次广播
+                    {
+                        TSPlayer.All.SendInfoMessage($"服务器将在 [c/FF9000:{countdownRestart.time}] 秒后重启");
+                        Console.WriteLine($"服务器将在 {countdownRestart.time} 秒后重启");
+                    }
+                }
+                else if (countdownRestart.time >= 1)//0~20秒内，每秒发一次
+                {
+                    TSPlayer.All.SendInfoMessage($"服务器将在 [c/FF9000:{countdownRestart.time}] 秒后重启");
+                    Console.WriteLine($"服务器将在 {countdownRestart.time} 秒后重启");
+                }
+                else
+                {
+                    RestartGame();
+                }
+                countdownRestart.time--;
+                Thread.Sleep(1000);
+            }
+        });
+        #endregion
+
+        public PControl(Main game) : base(game) { }
 
         public override void Initialize()
         {
+            Timer = 0L;
             Console.ForegroundColor = ConsoleColor.Red;
             config = Config.LoadConfigFile();
             //重置时间在现在之前，那么取消重置
@@ -163,9 +338,8 @@ namespace ProgressControl
                 HelpText = "输入 /supco help 来获取该插件的帮助"
             });
 
-            thread.Start();
+            thread_auto.Start();
         }
-
 
         protected override void Dispose(bool disposing)
         {
@@ -173,7 +347,9 @@ namespace ProgressControl
             {
                 try
                 {
-                    thread.Interrupt();
+                    thread_auto.Interrupt();
+                    thread_reload.Interrupt();
+                    thread_reset.Interrupt();
                 }
                 catch { }
                 ServerApi.Hooks.NpcAIUpdate.Deregister(this, NPCAIUpdate);
@@ -188,12 +364,12 @@ namespace ProgressControl
             config = Config.LoadConfigFile();
             if ((config.开服日期.AddHours(config.多少小时后开始自动重置世界) - DateTime.Now).TotalHours <= AvoidTime * 1.0 / 60.0 && config.是否启用自动重置世界)
             {
-                e.Player.SendInfoMessage($"自动重置世界倒计时过短，已关闭自动重置，请至少于开服后 {AvoidTime - 1} 分钟内不要重置，避免产生错误");
+                e.Player.SendInfoMessage($"自动重置世界倒计时过短，已关闭自动重置，请至少于开服后 {AvoidTime} 分钟内不要重置，避免产生错误");
                 config.是否启用自动重置世界 = false;
             }
             if ((config.上次重启服务器的日期.AddHours(config.多少小时后开始自动重启服务器) - DateTime.Now).TotalHours <= AvoidTime * 1.0 / 60.0 && config.是否启用自动重启服务器)
             {
-                e.Player.SendInfoMessage($"自动重启服务器倒计时过短，已关闭自动重启，请至少于上次重启后 {AvoidTime - 1} 分钟内不要重启，避免产生错误");
+                e.Player.SendInfoMessage($"自动重启服务器倒计时过短，已关闭自动重启，请至少于上次重启后 {AvoidTime} 分钟内不要重启，避免产生错误");
                 config.是否启用自动重启服务器 = false;
             }
             if ((config.上次自动执行指令的日期.AddHours(config.多少小时后开始自动执行指令) - DateTime.Now).TotalHours <= AvoidTime * 1.0 / 60.0 && config.是否启用自动执行指令)

@@ -1,5 +1,4 @@
 ﻿using Newtonsoft.Json;
-using Terraria;
 using TShockAPI;
 
 
@@ -60,7 +59,7 @@ namespace ProgressControl
             自动重启的参数设置 = "这是一条提示信息。自动重启的端口会沿用重启前的；最大玩家数目、密码将按照config.json来配置";
             自动重启前执行的指令_不需要加斜杠 = new HashSet<string>();
 
-            是否自动控制Boss进度 = false;
+            是否自动控制NPC进度 = false;
             Boss封禁时长距开服日期_单位小时 = new Dictionary<string, double>()
             {
                 {"史莱姆王", 0},//第一天
@@ -83,11 +82,11 @@ namespace ProgressControl
                 {"四柱" ,168},
                 {"月亮领主" ,174}//8+1/4天
             };
-
+            NPC封禁时长距开服日期_ID和单位小时 = new Dictionary<int, double>{};
             上次自动执行指令的日期 = DateTime.Now;
             是否启用自动执行指令 = false;
             多少小时后开始自动执行指令 = -1;
-            自动执行的指令_不需要加斜杠 = new HashSet<string> {};
+            自动执行的指令_不需要加斜杠 = new HashSet<string> { };
         }
 
         //重置计划
@@ -115,8 +114,9 @@ namespace ProgressControl
         public HashSet<string> 自动重启前执行的指令_不需要加斜杠;
 
         //Boss进度控制计划
-        public bool 是否自动控制Boss进度;
+        public bool 是否自动控制NPC进度;
         public Dictionary<string, double> Boss封禁时长距开服日期_单位小时;
+        public Dictionary<int, double> NPC封禁时长距开服日期_ID和单位小时;
 
         //指令使用计划
         public DateTime 上次自动执行指令的日期;
