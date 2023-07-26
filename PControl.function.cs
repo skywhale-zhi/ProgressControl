@@ -1,4 +1,5 @@
 ﻿using Microsoft.Xna.Framework;
+using System.Collections.Generic;
 using System.Diagnostics;
 using Terraria;
 using Terraria.ID;
@@ -58,7 +59,7 @@ namespace ProgressControl
                     {
                         if (config.开服日期.AddHours(config.多少小时后开始自动重置世界) <= DateTime.Now.AddMinutes(AvoidTime))
                         {
-                            args.Player.SendInfoMessage($"自动重置世界倒计时过短，已关闭自动重置，请至少于开服后 {AvoidTime - 1} 分钟内不要重置，避免产生错误");
+                            args.Player.SendInfoMessage($"自动重置世界倒计时过短，已关闭自动重置，请至少于开服后 {AvoidTime} 分钟内不要重置，避免产生错误");
                         }
                         else
                         {
@@ -84,7 +85,7 @@ namespace ProgressControl
                     {
                         if (config.上次重启服务器的日期.AddHours(config.多少小时后开始自动重启服务器) <= DateTime.Now.AddMinutes(AvoidTime))
                         {
-                            args.Player.SendInfoMessage($"自动重启服务器倒计时过短，已关闭自动重启，请至少于上次重启后 {AvoidTime - 1} 分钟内不要重启，避免产生错误");
+                            args.Player.SendInfoMessage($"自动重启服务器倒计时过短，已关闭自动重启，请至少于上次重启后 {AvoidTime} 分钟内不要重启，避免产生错误");
                         }
                         else
                         {
@@ -100,7 +101,7 @@ namespace ProgressControl
                 {
                     //boss进度数据输出
                     string mess = "";
-                    if (config.是否自动控制Boss进度)
+                    if (config.是否自动控制NPC进度)
                     {
                         double lv = (DateTime.Now - config.开服日期).TotalHours;
                         Dictionary<string, double> keyValuePairs = new Dictionary<string, double>();
@@ -128,7 +129,7 @@ namespace ProgressControl
                                 keyValuePairs.Remove(key);
                             }
                         }
-                        mess += args.Player.IsLoggedIn ? "" + "[i:3868]已锁Boss倒计时：\n" : "@已锁Boss倒计时：\n";
+                        mess += args.Player.IsLoggedIn ? "" + "[i:3868]已锁NPC倒计时：\n" : "@已锁NPC倒计时：\n";
                         int count = 0;
                         //把排好序的数据输出
                         foreach (var v in sortpairs)
@@ -137,10 +138,56 @@ namespace ProgressControl
                             {
                                 count++;
                                 if (args.Player.IsLoggedIn)
-                                    mess += $"[{v.Key}{HoursToM(v.Value - lv, "28FFB8")}]  ";
+                                    mess += $"[{v.Key}{HoursToM(v.Value - lv, "28FFB8")}] ";
                                 else
-                                    mess += $"[{v.Key}{HoursToM(v.Value - lv)}]  ";
-                                if (count == 6)
+                                    mess += $"[{v.Key}{HoursToM(v.Value - lv)}] ";
+                                if (count == 4)
+                                {
+                                    mess += "\n";
+                                    count = 0;
+                                }
+                            }
+                        }
+                        mess = mess.Trim('\n');
+                        //对npc封禁进行整理*******************************************************************
+                        Dictionary<int, double> keyValuePairsnpc = new Dictionary<int, double>();
+                        Dictionary<int, double> sortpairsnpc = new Dictionary<int, double>();
+                        foreach (var v in config.NPC封禁时长距开服日期_ID和单位小时)
+                        {
+                            keyValuePairsnpc.Add(v.Key, v.Value);
+                        }
+                        //排序
+                        while (keyValuePairsnpc.Count > 0)
+                        {
+                            double min = double.MaxValue;
+                            int key = -1;
+                            foreach (var v in keyValuePairsnpc)
+                            {
+                                if (v.Value < min)
+                                {
+                                    key = v.Key;
+                                    min = v.Value;
+                                }
+                            }
+                            if (key != -1)
+                            {
+                                sortpairsnpc.Add(key, min);
+                                keyValuePairsnpc.Remove(key);
+                            }
+                        }
+                        count = 0;
+                        mess += "\n";
+                        //把排好序的数据输出
+                        foreach (var v in sortpairsnpc)
+                        {
+                            if (v.Value >= lv)
+                            {
+                                count++;
+                                if (args.Player.IsLoggedIn)
+                                    mess += $"[({v.Key}){Lang.GetNPCNameValue(v.Key)}{HoursToM(v.Value - lv, "28FFB8")}] ";
+                                else
+                                    mess += $"[({v.Key}){Lang.GetNPCNameValue(v.Key)}{HoursToM(v.Value - lv)}] ";
+                                if (count == 4)
                                 {
                                     mess += "\n";
                                     count = 0;
@@ -149,8 +196,10 @@ namespace ProgressControl
                         }
                     }
                     else
-                        mess += args.Player.IsLoggedIn ? "[i:3868]" + MtoM("没有任何Boss进度控制计划", "28FFB8") : "@没有任何Boss进度控制计划";
+                        mess += args.Player.IsLoggedIn ? "[i:3868]" + MtoM("没有任何NPC进度控制计划", "28FFB8") : "@没有任何NPC进度控制计划";
                     mess = mess.Trim('\n');
+
+
                     //3个自动化设置的信息
                     string clock1, clock2, clock3;
                     if (!config.是否启用自动重置世界 && !countdownReset.enable)
@@ -370,56 +419,7 @@ namespace ProgressControl
                                     args.Player.SendInfoMessage($"手动重置计划开启，服务器将在{HoursToM(num * 1.0 / 3600)}后重置");
                                 countdownReset.enable = true;
                                 countdownReset.time = num;
-                                Thread thread = new Thread(() =>
-                                {
-                                    while (countdownReset.time >= 0 && !Netplay.Disconnect && countdownReset.enable)
-                                    {
-                                        if (countdownReset.time >= 3600)
-                                        {
-                                            if (countdownReset.time % 3600 == 0)
-                                            {
-                                                TSPlayer.All.SendInfoMessage($"服务器将在{HoursToM(countdownReset.time * 1.0 / 3600, "EA00FF")}后重置");
-                                                Console.WriteLine($"服务器将在{HoursToM(countdownReset.time * 1.0 / 3600)}后重置");
-                                            }
-                                        }
-                                        else if (countdownReset.time >= 600)
-                                        {
-                                            if (countdownReset.time % 600 == 0)
-                                            {
-                                                TSPlayer.All.SendInfoMessage($"服务器将在{HoursToM(countdownReset.time * 1.0 / 3600, "EA00FF")}后重置");
-                                                Console.WriteLine($"服务器将在{HoursToM(countdownReset.time * 1.0 / 3600)}后重置");
-                                            }
-                                        }
-                                        else if (countdownReset.time >= 60)
-                                        {
-                                            if (countdownReset.time % 60 == 0)
-                                            {
-                                                TSPlayer.All.SendInfoMessage($"服务器将在 [c/EA00FF:{countdownReset.time}] 秒后重置");
-                                                Console.WriteLine($"服务器将在 {countdownReset.time} 秒后重置");
-                                            }
-                                        }
-                                        else if (countdownReset.time >= 20)
-                                        {
-                                            if (countdownReset.time % 5 == 0)
-                                            {
-                                                TSPlayer.All.SendInfoMessage($"服务器将在 [c/EA00FF:{countdownReset.time}] 秒后重置");
-                                                Console.WriteLine($"服务器将在 {countdownReset.time} 秒后重置");
-                                            }
-                                        }
-                                        else if (countdownReset.time >= 1)
-                                        {
-                                            TSPlayer.All.SendInfoMessage($"服务器将在 [c/EA00FF:{countdownReset.time}] 秒后重置");
-                                            Console.WriteLine($"服务器将在 {countdownReset.time} 秒后重置");
-                                        }
-                                        else
-                                        {
-                                            ResetGame();
-                                        }
-                                        countdownReset.time--;
-                                        Thread.Sleep(1000);
-                                    }
-                                });
-                                thread.Start();
+                                thread_reset.Start();
                             }
                         }
                         else
@@ -480,56 +480,7 @@ namespace ProgressControl
                                     args.Player.SendInfoMessage($"手动重启计划开启，服务器将在{HoursToM(num * 1.0 / 3600)}后重启");
                                 countdownRestart.enable = true;
                                 countdownRestart.time = num;
-                                Thread thread = new Thread(() =>
-                                {
-                                    while (countdownRestart.time >= 0 && !Netplay.Disconnect && countdownRestart.enable)
-                                    {
-                                        if (countdownRestart.time >= 3600)//大于一小时时
-                                        {
-                                            if (countdownRestart.time % 3600 == 0)//每隔一小时发送自动化广播
-                                            {
-                                                TSPlayer.All.SendInfoMessage($"服务器将在{HoursToM(countdownRestart.time * 1.0 / 3600, "FF9000")}后重启");
-                                                Console.WriteLine($"服务器将在{HoursToM(countdownRestart.time * 1.0 / 3600)}后重启");
-                                            }
-                                        }
-                                        else if (countdownRestart.time >= 600)//大于十分钟时
-                                        {
-                                            if (countdownRestart.time % 600 == 0)//每隔十分钟发一次广播
-                                            {
-                                                TSPlayer.All.SendInfoMessage($"服务器将在{HoursToM(countdownRestart.time * 1.0 / 3600, "FF9000")}后重启");
-                                                Console.WriteLine($"服务器将在{HoursToM(countdownRestart.time * 1.0 / 3600)}后重启");
-                                            }
-                                        }
-                                        else if (countdownRestart.time >= 60)//大于1分钟时
-                                        {
-                                            if (countdownRestart.time % 60 == 0)//每一分钟发一次广播
-                                            {
-                                                TSPlayer.All.SendInfoMessage($"服务器将在 [c/FF9000:{countdownRestart.time}] 秒后重启");
-                                                Console.WriteLine($"服务器将在 {countdownRestart.time} 秒后重启");
-                                            }
-                                        }
-                                        else if (countdownRestart.time >= 20)//在20秒到60秒
-                                        {
-                                            if (countdownRestart.time % 5 == 0)//5秒发一次广播
-                                            {
-                                                TSPlayer.All.SendInfoMessage($"服务器将在 [c/FF9000:{countdownRestart.time}] 秒后重启");
-                                                Console.WriteLine($"服务器将在 {countdownRestart.time} 秒后重启");
-                                            }
-                                        }
-                                        else if (countdownRestart.time >= 1)//0~20秒内，每秒发一次
-                                        {
-                                            TSPlayer.All.SendInfoMessage($"服务器将在 [c/FF9000:{countdownRestart.time}] 秒后重启");
-                                            Console.WriteLine($"服务器将在 {countdownRestart.time} 秒后重启");
-                                        }
-                                        else
-                                        {
-                                            RestartGame();
-                                        }
-                                        countdownRestart.time--;
-                                        Thread.Sleep(1000);
-                                    }
-                                });
-                                thread.Start();
+                                thread_reload.Start();
                             }
                         }
                         else
@@ -691,26 +642,6 @@ namespace ProgressControl
                 args.Player.SendInfoMessage("输入 /supco help 来获取该插件的帮助");
         }
 
-        /*
-        /// <summary>
-        /// 在服务器关闭后执行指令
-        /// </summary>
-        /// <param name="args"></param>
-        private void RunResetCmd(string[] args)
-        {
-            if (Terraria.Utils.ParseArguements(args).TryGetValue("cmd", out string? text) && text != null && text.Equals("run", StringComparison.OrdinalIgnoreCase))
-            {
-                config.重置后执行的指令.ForEach(x =>
-                {
-                    Commands.HandleCommand(TSPlayer.Server, x);
-                    for(int i = 0;i < 100; i++)
-                    {
-                        Console.WriteLine(i);
-                    }
-                });
-            }
-        }
-         */
 
         /// <summary>
         /// 重置函数
@@ -728,7 +659,16 @@ namespace ProgressControl
                 catch { }
             });
             if (!config.自动重置是否重置玩家数据)
-                TShock.Players.ForEach(x => { if (x != null && x.IsLoggedIn) x.SaveServerCharacter(); });
+            {
+                TShock.Players.ForEach(x =>
+                {
+                    if (x != null && x.IsLoggedIn)
+                    {
+                        x.SaveServerCharacter();
+                        x.Kick("服务器正在重置", true);
+                    }
+                });
+            }
             if (config.自动重置是否重置玩家数据)
             {
                 try
@@ -751,6 +691,7 @@ namespace ProgressControl
                 if (File.Exists(Main.worldPathName + ".crash.bak2"))
                     File.Delete(Main.worldPathName + ".crash.bak2");
             }
+            TShock.Log.Info("服务器正在重置，来自插件：计划书ProgressControl");
             if (config.自动重置前是否删除日志)
             {
                 string name = TShock.Log.FileName;
@@ -763,21 +704,7 @@ namespace ProgressControl
                     }
                 });
             }
-            /*
-            try
-            {
-                //TShock.RestApi.Stop();
-            }
-            catch { }
-            try
-            {
-                PropertyInfo? property = ServerApi.LogWriter.GetType().GetProperty("DefaultLogWriter", BindingFlags.Instance | BindingFlags.NonPublic);
-                ServerLogWriter? serverLogWriter = (property != null) ? (ServerLogWriter?)property.GetValue(ServerApi.LogWriter) : null;
-                serverLogWriter?.Dispose();
-            }
-            catch { }
-            */
-
+           
             config.开服日期 = DateTime.Now;
             config.上次重启服务器的日期 = DateTime.Now;
             config.上次自动执行指令的日期 = DateTime.Now;
@@ -813,6 +740,7 @@ namespace ProgressControl
             Environment.Exit(0); //暴力关服处理
         }
 
+
         /// <summary>
         /// 重启游戏
         /// </summary>
@@ -822,15 +750,16 @@ namespace ProgressControl
             Config.SaveConfigFile(config);
             config.自动重启前执行的指令_不需要加斜杠.ForEach(x => { Commands.HandleCommand(TSPlayer.Server, "/" + x.Trim('/', '.')); });
             TShock.Utils.SaveWorld();
-            TShock.Players.ForEach(x => { if (x != null && x.IsLoggedIn) x.SaveServerCharacter(); });
-            TShock.Log.Dispose();
-            /*
-            try
+            TShock.Players.ForEach(x =>
             {
-                TShock.RestApi.Stop();
-            }
-            catch { }
-            */
+                if (x != null && x.IsLoggedIn)
+                {
+                    x.SaveServerCharacter();
+                    x.Kick("服务器需要重启", true);
+                }
+            });
+            TShock.Log.Info("服务器正在重置，来自插件：计划书ProgressControl");
+           
             Console.Clear();
             Process.Start(Path.Combine(Environment.CurrentDirectory, "Tshock.Server.exe"),
                 $"-lang 7 -world {Main.worldPathName} -maxplayers {TShock.Config.Settings.MaxSlots} -port {Netplay.ListenPort} -c");
@@ -838,6 +767,10 @@ namespace ProgressControl
             Environment.Exit(0); //暴力关服处理
         }
 
+
+        /// <summary>
+        /// 自动执行指令
+        /// </summary>
         private static void AutoCommands()
         {
             config.上次自动执行指令的日期 = DateTime.Now;
@@ -854,8 +787,13 @@ namespace ProgressControl
                 }
                 Commands.HandleCommand(TSPlayer.Server, "/" + x.Trim('/', '.'));
             });
-            TSPlayer.All.SendSuccessMessage("服务器自动执行指令成功");
-            Console.WriteLine("服务器自动执行指令成功");
+            try
+            {
+                TShock.Log.Info("服务器自动执行指令成功");
+                TSPlayer.All.SendSuccessMessage("服务器自动执行指令成功");
+                Console.WriteLine("服务器自动执行指令成功");
+            }
+            catch { }
         }
 
 
@@ -878,8 +816,11 @@ namespace ProgressControl
                         "输入 /pco view   来查看当前服务器的自动化计划\n" +
                         "输入 /pco now   来将开服日期、上次重启日期和上次自动执行指令日期调整到现在\n" +
 
-                        "输入 /pco autoboss   自动控制Boss进度计划启用，再次使用则关闭\n" +
+                        "输入 /pco autonpc   自动控制NPC和Boss进度计划启用，再次使用则关闭\n" +
                         "输入 /pco offset autoboss [±num]   来将自动控制Boss的解锁时刻推迟或提前num小时，num可为小数\n" +
+                        "输入 /pco npc或autonpc add [id] [num]   来添加一个NPC的封禁限制\n" +
+                        "输入 /pco npc或autonpc del [id]   来删除一个NPC的封禁限制\n" +
+
                         "输入 /pco autocom   自动执行指令计划启用，再次使用关闭\n" +
                         "输入 /pco offset autocom [±num]   将自动执行指令的时间推迟或提前num小时，num可为小数\n" +
                         "输入 /pco com [±num]   手动执行指令计划启用，在num秒后开始执行，若num不填则立刻执行，num小于0则关闭当前存在的手动计划，其优先级大于自动执行指令\n" +
@@ -891,7 +832,7 @@ namespace ProgressControl
                 {
                     string othermess = "";
                     //boss进度数据输出
-                    if (config.是否自动控制Boss进度)
+                    if (config.是否自动控制NPC进度)
                     {
                         double lv = (DateTime.Now - config.开服日期).TotalHours;
                         Dictionary<string, double> keyValuePairs = new Dictionary<string, double>();
@@ -943,10 +884,47 @@ namespace ProgressControl
                                 count = 1;
                             }
                         }
+                        //npc的************************************************************************************
+                        Dictionary<int, double> keyValuePairsnpc = new Dictionary<int, double>();
+                        Dictionary<int, double> sortpairsnpc = new Dictionary<int, double>();
+                        foreach (var v in config.NPC封禁时长距开服日期_ID和单位小时)
+                        {
+                            keyValuePairsnpc.Add(v.Key, v.Value);
+                        }
+                        //排序
+                        while (keyValuePairsnpc.Count > 0)
+                        {
+                            double min = double.MaxValue;
+                            int key = -1;
+                            foreach (var v in keyValuePairsnpc)
+                            {
+                                if (v.Value < min)
+                                {
+                                    key = v.Key;
+                                    min = v.Value;
+                                }
+                            }
+                            if (key != -1)
+                            {
+                                sortpairsnpc.Add(key, min);
+                                keyValuePairsnpc.Remove(key);
+                            }
+                        }
+                        //把排好序的数据输出
+                        foreach (var v in sortpairsnpc)
+                        {
+                            if (v.Value >= lv)
+                            {
+                                if (args.Player.IsLoggedIn)
+                                    mess += $"\n[{v.Key}]{Lang.GetNPCNameValue(v.Key)} 还剩{HoursToM(v.Value - lv, "28FFB8")}解锁";
+                                else
+                                    mess += $"\n[{v.Key}]{Lang.GetNPCNameValue(v.Key)} 还剩{HoursToM(v.Value - lv)}解锁";
+                            }
+                        }
                         args.Player.SendMessage(mess, TextColor());
                     }
                     else
-                        othermess += args.Player.IsLoggedIn ? "[i:3868]" + MtoM("Boss进度控制未开启", "28FFB8") + "\n" : "Boss进度控制未开启\n";
+                        othermess += args.Player.IsLoggedIn ? "[i:3868]" + MtoM("NPC进度控制未开启", "28FFB8") + "\n" : "NPC进度控制未开启\n";
 
                     //自动重置数据输出
                     if (config.是否启用自动重置世界 && !countdownReset.enable)
@@ -1007,9 +985,9 @@ namespace ProgressControl
                 }
                 else if (args.Parameters[0].Equals("now", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!args.Player.HasPermission("pco.admin"))
+                    if (!args.Player.HasPermission("pco.admin") && !args.Player.HasPermission("pco.superadmin"))
                     {
-                        args.Player.SendInfoMessage("权限不足！");
+                        args.Player.SendInfoMessage("权限不足！[pco.admin]");
                         return;
                     }
                     config.开服日期 = DateTime.Now;
@@ -1018,26 +996,37 @@ namespace ProgressControl
                     Config.SaveConfigFile(config);
                     args.Player.SendSuccessMessage("定位成功，所有已开启的自动计划将从现在开始计时");
                 }
-                else if (args.Parameters[0].Equals("autoboss", StringComparison.OrdinalIgnoreCase))
+                else if (args.Parameters[0].Equals("autonpc", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!args.Player.HasPermission("pco.admin"))
+                    if (!args.Player.HasPermission("pco.admin") && !args.Player.HasPermission("pco.superadmin"))
                     {
-                        args.Player.SendInfoMessage("权限不足！");
+                        args.Player.SendInfoMessage("权限不足！[pco.admin]");
                         return;
                     }
-                    if (config.是否自动控制Boss进度)
+                    if (config.是否自动控制NPC进度)
                         args.Player.SendSuccessMessage("已取消Boss的封禁限制计划");
                     else
                         args.Player.SendSuccessMessage("已开启Boss的封禁限制计划");
-                    config.是否自动控制Boss进度 = !config.是否自动控制Boss进度;
+                    config.是否自动控制NPC进度 = !config.是否自动控制NPC进度;
                     Config.SaveConfigFile(config);
                 }
                 else if (args.Parameters[0].Equals("autocom", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!args.Player.HasPermission("pco.admin"))
+                    if (!args.Player.HasPermission("pco.admin") && !args.Player.HasPermission("pco.superadmin"))
                     {
-                        args.Player.SendInfoMessage("权限不足！");
+                        args.Player.SendInfoMessage("权限不足！[pco.admin]");
                         return;
+                    }
+                    if (!args.Player.HasPermission("pco.superadmin"))
+                    {
+                        config.自动执行的指令_不需要加斜杠.ForEach(x =>
+                        {
+                            if (x.Equals("supco", StringComparison.OrdinalIgnoreCase))
+                            {
+                                args.Player.SendInfoMessage("权限不足[pco.superadmin]，不能调整含有supco系列指令的自动计划");
+                                return;
+                            }
+                        });
                     }
                     if (config.是否启用自动执行指令)
                     {
@@ -1066,10 +1055,20 @@ namespace ProgressControl
                 }
                 else if (args.Parameters[0].Equals("com", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!args.Player.HasPermission("pco.admin"))
+                    if (!args.Player.HasPermission("pco.admin") && !args.Player.HasPermission("pco.superadmin"))
                     {
-                        args.Player.SendInfoMessage("权限不足！");
-                        return;
+                        args.Player.SendInfoMessage("权限不足！[pco.admin]");
+                    }
+                    if (!args.Player.HasPermission("pco.superadmin"))
+                    {
+                        config.自动执行的指令_不需要加斜杠.ForEach(x =>
+                        {
+                            if (x.Equals("supco", StringComparison.OrdinalIgnoreCase))
+                            {
+                                args.Player.SendInfoMessage("权限不足[pco.superadmin]，不能发起含有supco系列指令的手动计划");
+                                return;
+                            }
+                        });
                     }
                     AutoCommands();
                 }
@@ -1080,10 +1079,21 @@ namespace ProgressControl
             {
                 if (args.Parameters[0].Equals("com", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!args.Player.HasPermission("pco.admin"))
+                    if (!args.Player.HasPermission("pco.admin") && !args.Player.HasPermission("pco.superadmin"))
                     {
-                        args.Player.SendInfoMessage("权限不足！");
+                        args.Player.SendInfoMessage("权限不足！[pco.admin]");
                         return;
+                    }
+                    if (!args.Player.HasPermission("pco.superadmin"))
+                    {
+                        config.自动执行的指令_不需要加斜杠.ForEach(x =>
+                        {
+                            if (x.Equals("supco", StringComparison.OrdinalIgnoreCase))
+                            {
+                                args.Player.SendInfoMessage("权限不足[pco.superadmin]，不能发起含有supco系列指令的手动计划");
+                                return;
+                            }
+                        });
                     }
                     if (int.TryParse(args.Parameters[1], out int num))
                     {
@@ -1164,9 +1174,9 @@ namespace ProgressControl
             {
                 if (args.Parameters[0].Equals("offset", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!args.Player.HasPermission("pco.admin"))
+                    if (!args.Player.HasPermission("pco.admin") && !args.Player.HasPermission("pco.superadmin"))
                     {
-                        args.Player.SendInfoMessage("权限不足！");
+                        args.Player.SendInfoMessage("权限不足！[pco.admin]");
                         return;
                     }
                     if (double.TryParse(args.Parameters[2], out double addtime))
@@ -1190,7 +1200,7 @@ namespace ProgressControl
                                 st = "提前" + (args.Player.IsLoggedIn ? HoursToM(-1 * addtime, "28FFB8") : HoursToM(-1 * addtime));
                             else
                                 st = "正常";
-                            if (!config.是否自动控制Boss进度)
+                            if (!config.是否自动控制NPC进度)
                                 args.Player.SendErrorMessage("警告，未开启自动控制Boss进度计划，你的修改不会有任何效果");
                             else
                                 TSPlayer.All.SendSuccessMessage($"定位成功，Boss将{st}解锁");
@@ -1199,6 +1209,17 @@ namespace ProgressControl
                         }
                         else if (args.Parameters[1].Equals("autocom", StringComparison.OrdinalIgnoreCase))
                         {
+                            if (!args.Player.HasPermission("pco.superadmin"))
+                            {
+                                config.自动执行的指令_不需要加斜杠.ForEach(x =>
+                                {
+                                    if (x.Equals("supco", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        args.Player.SendInfoMessage("权限不足[pco.superadmin]，不能对含有supco系列指令的自动计划进行时间修改");
+                                        return;
+                                    }
+                                });
+                            }
                             config.多少小时后开始自动执行指令 += addtime;
                             Config.SaveConfigFile(config);
                             string st;
@@ -1226,9 +1247,9 @@ namespace ProgressControl
                 }
                 else if (args.Parameters[0].Equals("com", StringComparison.OrdinalIgnoreCase) || args.Parameters[0].Equals("autocom", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!args.Player.HasPermission("pco.admin"))
+                    if (!args.Player.HasPermission("pco.admin") && !args.Player.HasPermission("pco.superadmin"))
                     {
-                        args.Player.SendInfoMessage("权限不足！");
+                        args.Player.SendInfoMessage("权限不足！[pco.admin]");
                         return;
                     }
                     if (args.Parameters[1].Equals("add", StringComparison.OrdinalIgnoreCase))
@@ -1239,13 +1260,20 @@ namespace ProgressControl
                             mess += args.Parameters[i].Trim('/', '.') + " ";
                         }
                         mess = mess.Trim(' ');
-                        if (config.自动执行的指令_不需要加斜杠.Add(mess))
+                        if (mess.Contains("supco", StringComparison.OrdinalIgnoreCase) && !args.Player.HasPermission("pco.superadmin"))
                         {
-                            args.Player.SendSuccessMessage($"已将指令 /{mess} 添加成功！");
-                            Config.SaveConfigFile(config);
+                            args.Player.SendInfoMessage("权限不足[pco.superadmin]，不能添加supco系列指令");
                         }
                         else
-                            args.Player.SendErrorMessage("添加失败，请检查是否已添加过");
+                        {
+                            if (config.自动执行的指令_不需要加斜杠.Add(mess))
+                            {
+                                args.Player.SendSuccessMessage($"已将指令 /{mess} 添加成功！");
+                                Config.SaveConfigFile(config);
+                            }
+                            else
+                                args.Player.SendErrorMessage("添加失败，请检查是否已添加过");
+                        }
                     }
                     else if (args.Parameters[1].Equals("del", StringComparison.OrdinalIgnoreCase))
                     {
@@ -1255,13 +1283,79 @@ namespace ProgressControl
                             mess += args.Parameters[i].Trim('/', '.') + " ";
                         }
                         mess = mess.Trim(' ');
-                        if (config.自动执行的指令_不需要加斜杠.Remove(mess))
+                        if (mess.Contains("supco", StringComparison.OrdinalIgnoreCase) && !args.Player.HasPermission("pco.superadmin"))
                         {
-                            args.Player.SendSuccessMessage($"已将指令 /{mess} 删除成功！");
-                            Config.SaveConfigFile(config);
+                            args.Player.SendInfoMessage("权限不足[pco.superadmin]，不能删除supco系列指令");
                         }
                         else
-                            args.Player.SendErrorMessage("删除失败，请检查是否存在该指令");
+                        {
+                            if (config.自动执行的指令_不需要加斜杠.Remove(mess))
+                            {
+                                args.Player.SendSuccessMessage($"已将指令 /{mess} 删除成功！");
+                                Config.SaveConfigFile(config);
+                            }
+                            else
+                                args.Player.SendErrorMessage("删除失败，请检查是否存在该指令");
+                        }
+                    }
+                    else
+                        args.Player.SendInfoMessage("输入 /pco help 来获取该插件的帮助");
+                }
+                else if (args.Parameters[0].Equals("npc", StringComparison.OrdinalIgnoreCase) || args.Parameters[0].Equals("autonpc", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!args.Player.HasPermission("pco.admin") && !args.Player.HasPermission("pco.superadmin"))
+                    {
+                        args.Player.SendInfoMessage("权限不足！[pco.admin]");
+                        return;
+                    }
+                    if (args.Parameters[1].Equals("add", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (args.Parameters.Count != 4)
+                        {
+                            args.Player.SendInfoMessage("输入 /pco help 来获取该插件的帮助");
+                            return;
+                        }
+                        if (int.TryParse(args.Parameters[2], out int id))
+                        {
+                            if (double.TryParse(args.Parameters[3], out double num))
+                            {
+                                if (config.NPC封禁时长距开服日期_ID和单位小时.TryGetValue(id, out double temp))
+                                {
+                                    config.NPC封禁时长距开服日期_ID和单位小时[id] = num;
+                                }
+                                else
+                                {
+                                    config.NPC封禁时长距开服日期_ID和单位小时.Add(id, num);
+                                }
+                                Config.SaveConfigFile(config);
+                                double d = (config.开服日期.AddHours(num) - DateTime.Now).TotalHours;
+                                if (d > 0)
+                                    args.Player.SendSuccessMessage($"NPC:{Lang.GetNPCNameValue(id)} 已更新成功，将在从现在起{HoursToM(d, "28FFB8")}后解锁");
+                                else
+                                    args.Player.SendSuccessMessage($"NPC:{Lang.GetNPCNameValue(id)} 已更新成功，且目前已解锁");
+                            }
+                            else
+                                args.Player.SendInfoMessage("num应为小数");
+                        }
+                        else
+                            args.Player.SendInfoMessage("ID应为整数");
+                    }
+                    else if (args.Parameters[1].Equals("del", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (int.TryParse(args.Parameters[2], out int id))
+                        {
+                            if (config.NPC封禁时长距开服日期_ID和单位小时.Remove(id))
+                            {
+                                Config.SaveConfigFile(config);
+                                args.Player.SendSuccessMessage($"NPC:{Lang.GetNPCNameValue(id)} 已删除成功");
+                            }
+                            else
+                            {
+                                args.Player.SendSuccessMessage($"NPC:{Lang.GetNPCNameValue(id)} 未在计划中找到，删除失败");
+                            }
+                        }
+                        else
+                            args.Player.SendInfoMessage("ID应为整数");
                     }
                     else
                         args.Player.SendInfoMessage("输入 /pco help 来获取该插件的帮助");
@@ -1280,7 +1374,7 @@ namespace ProgressControl
         /// <param name="args"></param>
         private void NPCAIUpdate(NpcAiUpdateEventArgs args)
         {
-            if (!config.是否自动控制Boss进度 || args == null || args.Npc == null || !args.Npc.active || Main.time % 2 != 0)
+            if (!config.是否自动控制NPC进度 || args == null || args.Npc == null || !args.Npc.active || Main.time % 2 != 0)
                 return;
 
             switch (args.Npc.netID)
@@ -1387,7 +1481,19 @@ namespace ProgressControl
                     break;
                 default: break;
             }
+
+            if (config.NPC封禁时长距开服日期_ID和单位小时.TryGetValue(args.Npc.netID, out double num))
+            {
+                TimeSpan span = config.开服日期.AddHours(num) - DateTime.Now;
+                if (span.TotalHours >= 0)
+                {
+                    args.Npc.active = false;
+                    TSPlayer.All.SendData(PacketTypes.NpcUpdate, "", args.Npc.whoAmI);
+                    //TSPlayer.All.SendInfoMessage($"{args.Npc.FullName} 未到解锁时间，还剩{HoursToM(span.TotalHours, "28FFB8")}");
+                }
+            }
         }
+
 
         /// <summary>
         /// npc受击的
@@ -1395,7 +1501,7 @@ namespace ProgressControl
         /// <param name="args"></param>
         private void NPCStrike(NpcStrikeEventArgs args)
         {
-            if (!config.是否自动控制Boss进度 || args == null || args.Npc == null || !args.Npc.active)
+            if (!config.是否自动控制NPC进度 || args == null || args.Npc == null || !args.Npc.active)
                 return;
 
             switch (args.Npc.netID)
@@ -1492,10 +1598,9 @@ namespace ProgressControl
         /// </summary>
         /// <param name="bossname"></param>
         /// <param name="enableBC">是否发出广播</param>
-        void Function(NPC npc, string bossname, bool enableBC = true)
+        private void Function(NPC npc, string bossname, bool enableBC = true)
         {
-            DateTime dt = DateTime.Now;
-            double jiange = (dt - config.开服日期).TotalHours;
+            double jiange = (DateTime.Now - config.开服日期).TotalHours;
             if (jiange < config.Boss封禁时长距开服日期_单位小时[bossname])
             {
                 npc.active = false;
@@ -1506,7 +1611,11 @@ namespace ProgressControl
         }
 
 
-        public static Color TextColor()
+        /// <summary>
+        /// 随机返回一个颜色
+        /// </summary>
+        /// <returns></returns>
+        private static Color TextColor()
         {
             int r, g, b;
             r = Main.rand.Next(100, 255);
@@ -1515,37 +1624,41 @@ namespace ProgressControl
             return new Color(r, g, b);
         }
 
+
         /// <summary>
-        /// 将 xxh 转化为 { xx.xxx 时 xx 分钟 xx 秒 }，数字用彩色强调，颜色不填时只返回纯文本
+        /// 将 xxh 转化为 { xx.xxx 时 xx 分 xx 秒 }，数字用彩色强调，颜色不填时只返回纯文本
         /// </summary>
         /// <param name="h"></param>
         /// <param name="color"> 修改数字的颜色,不填时默认原色，泰拉游戏中的颜色 [c/十六进制:文本]，只用填十六进制即可 </param>
         /// <returns></returns>
-        public static string HoursToM(double h, string color = "")
+        private static string HoursToM(double hours, string color = "")
         {
             string mess = "";
-            int newH, s, m; //时分秒
-            newH = (int)h;
-            m = (int)(h % 1 * 60);//分
-            s = (int)(h % 1 * 60 % 1 * 60);//秒
+            int h, s, m; //时分秒
+            h = (int)hours;
+            m = (int)(hours % 1 * 60);//分
+            s = (int)(hours % 1 * 60 % 1 * 60);//秒
             if (!string.IsNullOrWhiteSpace(color))
             {
-                if (newH > 0)
-                    mess += $" [c/{color}:{newH}] 时";
+                if (h > 0)
+                    mess += $" [c/{color}:{h}] 时";
                 if (m > 0)
                     mess += $" [c/{color}:{m}] 分";
-                mess += $" [c/{color}:{s}] 秒";
+                if (s > 0 || h == 0 && m == 0 && s == 0)
+                    mess += $" [c/{color}:{s}] 秒";
             }
             else
             {
-                if (newH > 0)
-                    mess += $" {newH} 时";
+                if (h > 0)
+                    mess += $" {h} 时";
                 if (m > 0)
                     mess += $" {m} 分";
-                mess += $" {s} 秒";
+                if (s > 0 || h == 0 && m == 0 && s == 0)
+                    mess += $" {s} 秒";
             }
             return mess;
         }
+
 
         /// <summary>
         /// 将 xxx 转化为 [c/十六进制:xxx] 带彩色的那种，颜色不填时只返回纯文本
@@ -1553,7 +1666,7 @@ namespace ProgressControl
         /// <param name="m"></param>
         /// <param name="color"></param>
         /// <returns></returns>
-        public static string MtoM(string m, string color = "")
+        private static string MtoM(string m, string color = "")
         {
             if (color == "")
                 return m;
