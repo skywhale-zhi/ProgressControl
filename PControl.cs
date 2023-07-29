@@ -17,7 +17,7 @@ namespace ProgressControl
         public override string Author => "z枳";
         public override string Description => "计划书";
         public override string Name => "ProgressControl";
-        public override Version Version => new Version(1, 0, 0, 0);
+        public override Version Version => new Version(1, 0, 0, 1);
 
         public static Config config = new Config();
 
@@ -307,7 +307,7 @@ namespace ProgressControl
                 config.开服日期 = DateTime.Now;
                 config.是否启用自动重置世界 = false;
                 config.多少小时后开始自动重置世界 = -1;
-                Config.SaveConfigFile(config);
+                config.SaveConfigFile();
             }
             if ((DateTime.Now - config.上次重启服务器的日期).TotalHours >= config.多少小时后开始自动重启服务器 && config.是否启用自动重启服务器)
             {
@@ -315,7 +315,7 @@ namespace ProgressControl
                 Console.WriteLine("自动重启已过期，现已将上次重启日期设定为现在，如果你不希望开启自动重启可以关闭，详情看ProgressControl.json配置文件（ProgressControl插件）");
                 Console.ForegroundColor = ConsoleColor.Gray;
                 config.上次重启服务器的日期 = DateTime.Now;
-                Config.SaveConfigFile(config);
+                config.SaveConfigFile();
             }
             if ((DateTime.Now - config.上次自动执行指令的日期).TotalHours >= config.多少小时后开始自动执行指令 && config.是否启用自动执行指令)
             {
@@ -323,7 +323,7 @@ namespace ProgressControl
                 Console.WriteLine("自动执行指令已过期，现已将上次执行指令的日期设定为现在，如果你不希望开启自动执行指令可以关闭，详情看ProgressControl.json配置文件（ProgressControl插件）");
                 Console.ForegroundColor = ConsoleColor.Gray;
                 config.上次自动执行指令的日期 = DateTime.Now;
-                Config.SaveConfigFile(config);
+                config.SaveConfigFile();
             }
             ServerApi.Hooks.NpcAIUpdate.Register(this, NPCAIUpdate);
             ServerApi.Hooks.NpcStrike.Register(this, NPCStrike);
@@ -338,7 +338,17 @@ namespace ProgressControl
                 HelpText = "输入 /supco help 来获取该插件的帮助"
             });
 
+            Commands.ChatCommands.Add(new Command("", Test, "t")
+            {
+                HelpText = "输入 /t"
+            });
+
             thread_auto.Start();
+        }
+
+        private void Test(CommandArgs args)
+        {
+            Console.WriteLine(Main.worldName);
         }
 
         protected override void Dispose(bool disposing)
@@ -376,7 +386,7 @@ namespace ProgressControl
             {
                 e.Player.SendInfoMessage($"自动执行指令倒计时过短，可能即将开始自动执行指令");
             }
-            Config.SaveConfigFile(config);
+            config.SaveConfigFile();
         }
     }
 }
