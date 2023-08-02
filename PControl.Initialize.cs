@@ -476,7 +476,7 @@ namespace ProgressControl
                 }
                 else
                 {
-                    if (args.Parameters[1].Equals("os", StringComparison.OrdinalIgnoreCase))
+                    if (args.Parameters[1].Equals("os", StringComparison.OrdinalIgnoreCase) || args.Parameters[1].Equals("offset", StringComparison.OrdinalIgnoreCase))
                     {
                         if (double.TryParse(args.Parameters[2], out double addtime))
                         {
@@ -775,7 +775,7 @@ namespace ProgressControl
                 }
                 else
                 {
-                    if (args.Parameters[1].Equals("os", StringComparison.OrdinalIgnoreCase))
+                    if (args.Parameters[1].Equals("os", StringComparison.OrdinalIgnoreCase) || args.Parameters[1].Equals("offset", StringComparison.OrdinalIgnoreCase))
                     {
                         if (config.越权检查)
                         {
@@ -1164,7 +1164,7 @@ namespace ProgressControl
                 }
                 else
                 {
-                    if (args.Parameters[1].Equals("os", StringComparison.OrdinalIgnoreCase))
+                    if (args.Parameters[1].Equals("os", StringComparison.OrdinalIgnoreCase) || args.Parameters[1].Equals("offset", StringComparison.OrdinalIgnoreCase))
                     {
                         if (!config.是否启用自动重启服务器)
                         {
@@ -1354,7 +1354,7 @@ namespace ProgressControl
                         config.SaveConfigFile();
                         args.Player.SendSuccessMessage("下次重置服务器的密码已取消");
                     }
-                    else if (args.Parameters[1].Equals("listname", StringComparison.OrdinalIgnoreCase))
+                    else if (args.Parameters[1].Equals("listname", StringComparison.OrdinalIgnoreCase) || args.Parameters[1].Equals("list", StringComparison.OrdinalIgnoreCase))
                     {
                         string text = "";
                         if (config.你提供用于重置的地图名称.Count == 0)
@@ -1415,7 +1415,7 @@ namespace ProgressControl
                 }
                 else
                 {
-                    if (args.Parameters[1].Equals("os", StringComparison.OrdinalIgnoreCase))
+                    if (args.Parameters[1].Equals("os", StringComparison.OrdinalIgnoreCase) || args.Parameters[1].Equals("offset", StringComparison.OrdinalIgnoreCase))
                     {
                         if (!config.是否启用自动重置世界)
                         {
